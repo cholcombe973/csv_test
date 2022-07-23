@@ -20,13 +20,15 @@ The processor makes a best attempt to process as many transactions as possible. 
 2. A bit array was chosen for the client account tracker. The fixed size greatly improves the efficiency of storing which client ID's have been seen.
 
 ## TODO still: 
-1. Handle scenarios where the client account is overdrawn. Currently it allows the account value to go negative.
+1. Handle scenarios where the client account is overdrawn. Currently it allows the account value to go negative. Depending on the situation this might not be a problem
+if the client account has margin to cover the overdraft. The other possibility is that we're dealing with a cash only account and balances should not be allowed to go below zero.
 
 ## Possible Improvements:
 1. The account processing could be merged with a trait possibly so that it doesn't go down different paths for in memory vs sled.
 2. More profiling should be done to determine the best way to handle large files. Initial profiling done on 50-100MB files shows that the CPU is maxing out the single thread it's running in. There's also a data size amplification when using sled as the backing store. I think there's more efficiency to be wrung out of this project with some memory profiling.
 3. Rayon could be used to parallelize the processing.
 4. The memory info tester may not work properly in container environments, bare metal or virtual machines are suggested.
+5. If at all possible prefer to use the in memory hash table for the client account tracker and process csv files that are smaller than the available system memory.
 
 ## Test Generation
 If you would like to generate a test file for yourself please run `cargo test generate_test_data`. Please check the code first and adjust the amount of data to generate.
