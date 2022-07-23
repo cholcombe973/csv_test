@@ -1,18 +1,16 @@
 /*
-    Given a CSV representing a series of transactions, implement a simple toy transactions engine
-    that processes the payments crediting and debiting accounts. After processing the complete set
-    of payments output the client account balances
+    This program will take a CSV file with a series of transactions and generate output that shows
+    the account state after all transactions are processed.
 
     Assumptions:
-    1. The client has a single asset account. All transactions are to and from this single asset account;
-    2. There are multiple clients. Transactions reference clients. If a client doesn't exist create a
-    new record;
-    3. Clients are represented by u16 integers. No names, addresses, or complex client profile
-    info;
+    1. Each client has a single account. All transactions reference this single asset account;
+    2. There are multiple clients. Transactions reference clients.
+    3. Clients are represented by unique u16 integers.
 
     // With a u32 transaction id the maximum number of transactions is 2^32 - 1 = 4,294,967,295
 
-    what if i do a hybrid and consider disputes, chargebacks and resolutions to be not typical and
+    Thoughts:
+    what if I do a hybrid and consider disputes, chargebacks and resolutions to be not typical and
     only store those in the transaction logs if they occur. If that happens, mark the account
     as being in dispute and replay the CSV file to grab all the transaction id's that are
     required to resolve the disputes.
@@ -379,7 +377,6 @@ fn print_output_header() {
 
 // Takes arguments of one_pass for in memory processing and csv_reader to process
 fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()> {
-    /*
     if one_pass {
         let mut accounts = HashMap::new();
         let record_iter = csv_reader.deserialize();
@@ -389,58 +386,57 @@ fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()
         }
         print_accounts(&mut accounts);
     } else {
-        */
-    // Too large to process in working memory
-    let mut client_accounts: bv::BitArr!(for 65535, in u16) = bv::BitArray::ZERO;
-    let sled_db = sled::Config::new().temporary(true).path("sled.db").open()?;
-    let record_iter = csv_reader.deserialize();
-    // Walk over the records and store them in the sled database
-    let mut line_number = 0;
-    for record in record_iter {
-        let record: RawRecord = record?;
-        let client_id = record.client;
-        let mut account = match sled_db.get(record.client.to_string())? {
-            Some(account) => bincode::deserialize::<Account>(&account)?,
-            None => Account {
-                id: record.client,
-                available_funds: 0.0,
-                held_funds: 0.0,
-                total_funds: 0.0,
-                locked: false,
-                last_processed_transaction: 0,
-                in_dispute: false,
-                transaction_log: Vec::new(),
-            },
-        };
-        // Store each transaction in the account
-        line_number += 1;
-        println!(
-            "Saving line: {} account: {} and transaction: {:?}",
-            line_number,
-            account,
-            TransactionOp::from(&record)
-        );
-        account.transaction_log.push(record.into());
-        sled_db.insert(client_id.to_string(), bincode::serialize(&account)?)?;
-        // Save the client ID for later
-        client_accounts.set(client_id.into(), true);
+        // Too large to process in working memory
+        let mut client_accounts: bv::BitArr!(for 65535, in u16) = bv::BitArray::ZERO;
+        let sled_db = sled::Config::new().temporary(true).path("sled.db").open()?;
+        let record_iter = csv_reader.deserialize();
+        // Walk over the records and store them in the sled database
+        let mut line_number = 0;
+        for record in record_iter {
+            let record: RawRecord = record?;
+            let client_id = record.client;
+            let mut account = match sled_db.get(record.client.to_string())? {
+                Some(account) => bincode::deserialize::<Account>(&account)?,
+                None => Account {
+                    id: record.client,
+                    available_funds: 0.0,
+                    held_funds: 0.0,
+                    total_funds: 0.0,
+                    locked: false,
+                    last_processed_transaction: 0,
+                    in_dispute: false,
+                    transaction_log: Vec::new(),
+                },
+            };
+            // Store each transaction in the account
+            line_number += 1;
+            println!(
+                "Saving line: {} account: {} and transaction: {:?}",
+                line_number,
+                account,
+                TransactionOp::from(&record)
+            );
+            account.transaction_log.push(record.into());
+            sled_db.insert(client_id.to_string(), bincode::serialize(&account)?)?;
+            // Save the client ID for later
+            client_accounts.set(client_id.into(), true);
+        }
+        println!("processing finished");
+        print_output_header();
+        // For each client process the account and print it out
+        for client in client_accounts.iter_ones() {
+            let mut account: Account = match sled_db.get(client.to_string())? {
+                Some(account) => bincode::deserialize::<Account>(&account)?,
+                None => {
+                    // If the account doesn't exist, ignore it
+                    eprint!("Account {} doesn't exist but should", client);
+                    continue;
+                }
+            };
+            process_account(&mut account);
+            println!("{}", account);
+        }
     }
-    println!("processing finished");
-    print_output_header();
-    // For each client process the account and print it out
-    for client in client_accounts.iter_ones() {
-        let mut account: Account = match sled_db.get(client.to_string())? {
-            Some(account) => bincode::deserialize::<Account>(&account)?,
-            None => {
-                // If the account doesn't exist, ignore it
-                eprint!("Account {} doesn't exist but should", client);
-                continue;
-            }
-        };
-        process_account(&mut account);
-        println!("{}", account);
-    }
-    //}
     Ok(())
 }
 
