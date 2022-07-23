@@ -21,12 +21,15 @@ fn generate_test_data() {
     let mut last_transaction_number: u32 = 1;
     let mut bytes_written = 0;
     let mut last_dispute_number: u32 = 0;
-    let client_number: u16 = 1;
+    let mut client_number: u16 = 1;
     // Try generating a single client that has random transaction values
     let mut rng = thread_rng();
     while !done {
         if last_transaction_number == u32::MAX {
             break;
+        }
+        if last_transaction_number % 1000 == 0 {
+            client_number += 1;
         }
         // Generate unique random numbers between 0 and u16::MAX for client accounts
         let transaction_type = match rng.gen_range(0..=3) {

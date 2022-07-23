@@ -27,3 +27,6 @@ The processor makes a best attempt to process as many transactions as possible. 
 2. More profiling should be done to determine the best way to handle large files. Initial profiling done on 50-100MB files shows that the CPU is maxing out the single thread it's running in. There's also a data size amplification when using sled as the backing store. I think there's more efficiency to be wrung out of this project with some memory profiling.
 3. Rayon could be used to parallelize the processing.
 4. The memory info tester may not work properly in container environments, bare metal or virtual machines are suggested.
+
+## Test Generation
+If you would like to generate a test file for yourself please run `cargo test generate_test_data`. Please check the code first and adjust the amount of data to generate.
