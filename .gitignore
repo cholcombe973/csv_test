@@ -1,2 +1,3 @@
 sled.db
 /target
+tests/*.csv
