@@ -23,6 +23,7 @@
 use anyhow::{anyhow, Result};
 use bitvec::prelude as bv;
 use csv::{ReaderBuilder, Trim};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, fmt, mem, path::Path};
 
@@ -342,16 +343,16 @@ fn environment_check(csv_file: &Path) -> Result<bool> {
     // Gives a _very_ rough estimate of the line count using worst case scenario of 35 bytes per line
     let csv_file_lines = csv_file.metadata()?.len() / 35;
     let memory_info = sys_info::mem_info()?;
-    println!("memory_info avail: {}", memory_info.avail);
+    debug!("memory_info avail: {}", memory_info.avail);
     let account_memory_size = mem::size_of::<Account>();
 
     // Figure out the number of accounts that can safely fit in memory
     // This is a conservative estimate of the number of accounts that can fit in memory
     // because TransactionOps are much smaller than Accounts. This assumes a worst case scenario of
     // no duplicate accounts
-    println!("account memory size: {}", account_memory_size);
+    debug!("account memory size: {}", account_memory_size);
     let max_accounts = memory_info.avail / account_memory_size as u64;
-    println!("max_accounts: {}", max_accounts);
+    debug!("max_accounts: {}", max_accounts);
 
     // Find the number of lines in the file
     if csv_file_lines > max_accounts {
@@ -410,7 +411,7 @@ fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()
             };
             // Store each transaction in the account
             line_number += 1;
-            println!(
+            debug!(
                 "Saving line: {} account: {} and transaction: {:?}",
                 line_number,
                 account,
@@ -421,7 +422,7 @@ fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()
             // Save the client ID for later
             client_accounts.set(client_id.into(), true);
         }
-        println!("processing finished");
+        debug!("processing finished");
         print_output_header();
         // For each client process the account and print it out
         for client in client_accounts.iter_ones() {
@@ -429,7 +430,7 @@ fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()
                 Some(account) => bincode::deserialize::<Account>(&account)?,
                 None => {
                     // If the account doesn't exist, ignore it
-                    eprint!("Account {} doesn't exist but should", client);
+                    debug!("Account {} doesn't exist but should", client);
                     continue;
                 }
             };
@@ -441,6 +442,7 @@ fn run(one_pass: bool, csv_reader: &mut csv::Reader<std::fs::File>) -> Result<()
 }
 
 fn main() -> Result<()> {
+    env_logger::init();
     // Take the first argument as the path to the CSV file
     let path = match env::args().nth(1) {
         Some(path) => path,
